@@ -760,8 +760,8 @@ async def add_episode(
                 )
                 logger.info(f"Episode '{name}' added successfully")
 
-                logger.info(f"Building communities after episode '{name}'")
-                await client.build_communities()
+                # logger.info(f"Building communities after episode '{name}'")
+                # await client.build_communities()
 
                 logger.info(f"Episode '{name}' processed successfully")
             except Exception as e:
