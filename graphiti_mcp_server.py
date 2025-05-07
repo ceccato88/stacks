@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
 from openai import AsyncAzureOpenAI
 from pydantic import BaseModel, Field
+from mcp.server.auth.provider import OAuthServerProvider
 
 from graphiti_core import Graphiti
 from graphiti_core.cross_encoder.client import CrossEncoderClient
