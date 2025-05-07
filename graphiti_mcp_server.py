@@ -533,16 +533,20 @@ mcp = FastMCP(
 )
 
 from fastapi import Request, HTTPException
+from starlette.middleware.base import BaseHTTPMiddleware
 
-@mcp.fastapi_app.middleware("http")
-async def auth_middleware(request: Request, call_next):
-    api_token = os.environ.get("API_TOKEN")
-    auth_header = request.headers.get("Authorization")
+class AuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        api_token = os.environ.get("API_TOKEN")
+        auth_header = request.headers.get("Authorization")
 
-    if not api_token or not auth_header or auth_header != f"Bearer {api_token}":
-        raise HTTPException(status_code=401, detail="Unauthorized")
+        if not api_token or not auth_header or auth_header != f"Bearer {api_token}":
+            raise HTTPException(status_code=401, detail="Unauthorized")
 
-    return await call_next(request)
+        return await call_next(request)
+
+# Adiciona o middleware à aplicação FastAPI do MCP
+mcp.add_fastapi_middleware(AuthMiddleware)
 
 # Initialize Graphiti client
 graphiti_client: Graphiti | None = None
