@@ -36,22 +36,6 @@ from graphiti_core.search.search_config_recipes import (
 from graphiti_core.search.search_filters import SearchFilters
 from graphiti_core.utils.maintenance.graph_data_operations import clear_data
 
-from mcp.server.auth import AuthProvider, AuthSettings, UserInfo
-from starlette.requests import Request
-
-class SimpleTokenAuthProvider(AuthProvider):
-    def __init__(self, token: str):
-        self.token = token
-
-    async def authenticate(self, request: Request) -> UserInfo:
-        auth_header = request.headers.get("authorization")
-        if not auth_header or not auth_header.startswith("Bearer "):
-            raise ValueError("Missing or invalid Authorization header")
-        received_token = auth_header.removeprefix("Bearer ").strip()
-        if received_token != self.token:
-            raise ValueError("Invalid API token")
-        return UserInfo(user_id="default-user")
-
 load_dotenv()
 
 DEFAULT_LLM_MODEL = 'gpt-4.1-mini'
@@ -544,10 +528,8 @@ API keys are provided for any language model operations.
 
 # MCP server instance
 mcp = FastMCP(
-    "graphiti",
+    'graphiti',
     instructions=GRAPHITI_MCP_INSTRUCTIONS,
-    auth_provider=SimpleTokenAuthProvider(os.environ.get("API_TOKEN", "")),
-    auth=AuthSettings(required_scopes=[]),
 )
 
 # Initialize Graphiti client
