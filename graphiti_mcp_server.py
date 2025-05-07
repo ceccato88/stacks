@@ -534,6 +534,9 @@ mcp = FastMCP(
 
 # Função de verificação de token
 
+from fastmcp.server.dependencies import get_http_request
+from fastapi import HTTPException
+
 def verify_token():
     api_token = os.getenv("API_TOKEN")
     request = get_http_request()
