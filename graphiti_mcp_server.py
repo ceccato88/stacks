@@ -38,6 +38,14 @@ from graphiti_core.utils.maintenance.graph_data_operations import clear_data
 
 load_dotenv()
 
+# Definição do provedor OAuth simples usando um token fixo do .env
+class SimpleTokenAuthProvider(OAuthServerProvider):
+    async def introspect_token(self, token: str) -> dict:
+        expected = os.getenv("API_TOKEN")
+        if token != expected:
+            raise HTTPException(status_code=403, detail="Token inválido")
+        return {"sub": "authorized_user", "scope": "graphiti"}
+
 DEFAULT_LLM_MODEL = 'gpt-4.1-mini'
 DEFAULT_EMBEDDER_MODEL = 'text-embedding-3-small'
 
@@ -526,10 +534,21 @@ For optimal performance, ensure the database is properly configured and accessib
 API keys are provided for any language model operations.
 """
 
-# MCP server instance
+# Instanciar o servidor MCP com autenticação
 mcp = FastMCP(
     'graphiti',
     instructions=GRAPHITI_MCP_INSTRUCTIONS,
+    auth_provider=SimpleTokenAuthProvider(),
+    auth=AuthSettings(
+        issuer_url="https://graphiti.agenciawow.tech",
+        revocation_options=RevocationOptions(enabled=True),
+        client_registration_options=ClientRegistrationOptions(
+            enabled=True,
+            valid_scopes=["graphiti"],
+            default_scopes=["graphiti"],
+        ),
+        required_scopes=["graphiti"],
+    ),
 )
 
 # Initialize Graphiti client
