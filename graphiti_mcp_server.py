@@ -532,6 +532,18 @@ mcp = FastMCP(
     instructions=GRAPHITI_MCP_INSTRUCTIONS,
 )
 
+from fastapi import Request, HTTPException
+
+API_TOKEN = os.getenv("API_TOKEN")
+
+@mcp.app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    if request.url.path == "/sse":
+        auth_header = request.headers.get("Authorization")
+        if auth_header != f"Bearer {API_TOKEN}":
+            raise HTTPException(status_code=401, detail="Unauthorized")
+    return await call_next(request)
+
 # Initialize Graphiti client
 graphiti_client: Graphiti | None = None
 
