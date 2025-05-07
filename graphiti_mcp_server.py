@@ -532,21 +532,19 @@ mcp = FastMCP(
     instructions=GRAPHITI_MCP_INSTRUCTIONS,
 )
 
-from fastapi import Request, HTTPException
+# Função de verificação de token
 
-@mcp.middleware("http")
-async def verify_token_middleware(request: Request, call_next):
+def verify_token():
     api_token = os.getenv("API_TOKEN")
-    auth_header = request.headers.get("Authorization")
+    request = get_http_request()
+    auth_header = request.headers.get("authorization", "")
 
-    if not auth_header or not auth_header.startswith("Bearer "):
+    if not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Token ausente ou inválido.")
-    
+
     token = auth_header.split(" ")[1]
     if token != api_token:
         raise HTTPException(status_code=403, detail="Token não autorizado.")
-    
-    return await call_next(request)
 
 # Initialize Graphiti client
 graphiti_client: Graphiti | None = None
@@ -730,6 +728,9 @@ async def add_episode(
         - Entities will be created from appropriate JSON properties
         - Relationships between entities will be established based on the JSON structure
     """
+
+    verify_token()
+    
     global graphiti_client, episode_queues, queue_workers
 
     if graphiti_client is None:
@@ -827,6 +828,9 @@ async def search_nodes(
         center_node_uuid: Optional UUID of a node to center the search around
         entity: Optional single entity type to filter results (permitted: "Preference", "Procedure")
     """
+
+    verify_token()
+    
     global graphiti_client
 
     if graphiti_client is None:
@@ -903,6 +907,9 @@ async def search_facts(
         max_facts: Maximum number of facts to return (default: 10)
         center_node_uuid: Optional UUID of a node to center the search around
     """
+
+    verify_token()
+    
     global graphiti_client
 
     if graphiti_client is None:
@@ -945,6 +952,9 @@ async def delete_entity_edge(uuid: str) -> SuccessResponse | ErrorResponse:
     Args:
         uuid: UUID of the entity edge to delete
     """
+
+    verify_token()
+    
     global graphiti_client
 
     if graphiti_client is None:
@@ -975,6 +985,9 @@ async def delete_episode(uuid: str) -> SuccessResponse | ErrorResponse:
     Args:
         uuid: UUID of the episode to delete
     """
+
+    verify_token()
+    
     global graphiti_client
 
     if graphiti_client is None:
@@ -1005,6 +1018,9 @@ async def get_entity_edge(uuid: str) -> dict[str, Any] | ErrorResponse:
     Args:
         uuid: UUID of the entity edge to retrieve
     """
+
+    verify_token()
+    
     global graphiti_client
 
     if graphiti_client is None:
@@ -1039,6 +1055,9 @@ async def get_episodes(
         group_id: ID of the group to retrieve episodes from. If not provided, uses the default group_id.
         last_n: Number of most recent episodes to retrieve (default: 10)
     """
+
+    verify_token()
+    
     global graphiti_client
 
     if graphiti_client is None:
@@ -1082,6 +1101,9 @@ async def get_episodes(
 @mcp.tool()
 async def clear_graph() -> SuccessResponse | ErrorResponse:
     """Clear all data from the Graphiti knowledge graph and rebuild indices."""
+
+    verify_token()
+    
     global graphiti_client
 
     if graphiti_client is None:
@@ -1105,8 +1127,10 @@ async def clear_graph() -> SuccessResponse | ErrorResponse:
 
 
 @mcp.resource('http://graphiti/status')
+
 async def get_status() -> StatusResponse:
     """Get the status of the Graphiti MCP server and Neo4j connection."""
+    verify_token()
     global graphiti_client
 
     if graphiti_client is None:
