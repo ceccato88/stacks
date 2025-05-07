@@ -18,7 +18,6 @@ from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
 from openai import AsyncAzureOpenAI
 from pydantic import BaseModel, Field
-from mcp.server.auth.provider import OAuthServerProvider
 
 from graphiti_core import Graphiti
 from graphiti_core.cross_encoder.client import CrossEncoderClient
@@ -39,13 +38,27 @@ from graphiti_core.utils.maintenance.graph_data_operations import clear_data
 
 load_dotenv()
 
-# Definição do provedor OAuth simples usando um token fixo do .env
-class SimpleTokenAuthProvider(OAuthServerProvider):
-    async def introspect_token(self, token: str) -> dict:
-        expected = os.getenv("API_TOKEN")
-        if token != expected:
-            raise HTTPException(status_code=403, detail="Token inválido")
-        return {"sub": "authorized_user", "scope": "graphiti"}
+from mcp.server.auth import AuthProvider, AuthSettings, UserInfo
+from starlette.requests import Request
+
+class SimpleTokenAuthProvider(AuthProvider):
+    def __init__(self, token: str):
+        self.token = token
+
+    async def authenticate(self, request: Request) -> UserInfo:
+        auth_header = request.headers.get("authorization")
+        if not auth_header:
+            raise ValueError("Missing Authorization header")
+
+        if not auth_header.startswith("Bearer "):
+            raise ValueError("Authorization header must start with 'Bearer '")
+
+        received_token = auth_header.removeprefix("Bearer ").strip()
+        if received_token != self.token:
+            raise ValueError("Invalid API token")
+
+        return UserInfo(user_id="default-user")
+
 
 DEFAULT_LLM_MODEL = 'gpt-4.1-mini'
 DEFAULT_EMBEDDER_MODEL = 'text-embedding-3-small'
@@ -535,22 +548,14 @@ For optimal performance, ensure the database is properly configured and accessib
 API keys are provided for any language model operations.
 """
 
-# Instanciar o servidor MCP com autenticação
+# MCP server instance
 mcp = FastMCP(
-    'graphiti',
+    "graphiti",
     instructions=GRAPHITI_MCP_INSTRUCTIONS,
-    auth_provider=SimpleTokenAuthProvider(),
-    auth=AuthSettings(
-        issuer_url="https://graphiti.agenciawow.tech",
-        revocation_options=RevocationOptions(enabled=True),
-        client_registration_options=ClientRegistrationOptions(
-            enabled=True,
-            valid_scopes=["graphiti"],
-            default_scopes=["graphiti"],
-        ),
-        required_scopes=["graphiti"],
-    ),
+    auth_provider=SimpleTokenAuthProvider(os.environ.get("API_TOKEN", "")),
+    auth=AuthSettings(required_scopes=[]),
 )
+
 
 # Initialize Graphiti client
 graphiti_client: Graphiti | None = None
