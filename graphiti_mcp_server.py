@@ -1177,15 +1177,53 @@ async def run_mcp_server():
     # Initialize the server
     mcp_config = await initialize_server()
 
-    # Run the server with stdio transport for MCP in the same event loop
-    logger.info(f'Starting MCP server with transport: {mcp_config.transport}')
-    if mcp_config.transport == 'stdio':
+    logger.info(f"Starting MCP server with transport: {mcp_config.transport}")
+
+    if mcp_config.transport == "stdio":
+        # STDIO transport
         await mcp.run_stdio_async()
-    elif mcp_config.transport == 'sse':
-        logger.info(
-            f'Running MCP server with SSE transport on {mcp.settings.host}:{mcp.settings.port}'
+
+    elif mcp_config.transport == "sse":
+        # SSE transport com autenticação
+        from starlette.applications import Starlette
+        from starlette.routing import Route, Mount
+        from starlette.middleware import Middleware
+        from mcp.server.fastmcp.transports.sse import SseServerTransport
+        from auth import BearerAuthBackend, auth_exception_handler
+
+        sse_transport = SseServerTransport("/messages")
+
+        async def handle_sse(request):
+            # Já passou pelo middleware → usuário autenticado
+            async with sse_transport.connect_sse(
+                request.scope, request.receive, request._send
+            ) as streams:
+                await mcp._mcp_server.run(
+                    streams[0],
+                    streams[1],
+                    mcp._mcp_server.create_initialization_options(),
+                )
+
+        routes = [
+            Route("/sse", endpoint=handle_sse),
+            Mount("/messages", app=sse_transport.handle_post_message),
+        ]
+        middleware = [
+            Middleware(AuthenticationMiddleware, backend=BearerAuthBackend()),
+        ]
+        app = Starlette(
+            debug=mcp.settings.debug,
+            routes=routes,
+            middleware=middleware,
+            exception_handlers={Exception: auth_exception_handler},
         )
-        await mcp.run_sse_async()
+
+        import uvicorn
+        uvicorn.run(app, host=mcp.settings.host, port=mcp.settings.port)
+
+    else:
+        logger.error(f"Unknown transport type: {mcp_config.transport}")
+        raise ValueError(f"Unsupported transport: {mcp_config.transport}")
 
 
 def main():
@@ -1194,9 +1232,10 @@ def main():
         # Run everything in a single event loop
         asyncio.run(run_mcp_server())
     except Exception as e:
-        logger.error(f'Error initializing Graphiti MCP server: {str(e)}')
+        logger.error(f"Error initializing Graphiti MCP server: {str(e)}")
         raise
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
+
