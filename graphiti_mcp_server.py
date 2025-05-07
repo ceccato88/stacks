@@ -546,7 +546,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 # Adiciona o middleware à aplicação FastAPI do MCP
-mcp.add_fastapi_middleware(AuthMiddleware)
+mcp.fastapi_app.add_middleware(AuthMiddleware)
 
 # Initialize Graphiti client
 graphiti_client: Graphiti | None = None
