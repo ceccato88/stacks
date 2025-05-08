@@ -528,16 +528,11 @@ For optimal performance, ensure the database is properly configured and accessib
 API keys are provided for any language model operations.
 """
 
+# MCP server instance
 mcp = FastMCP(
     "graphiti",
     instructions=GRAPHITI_MCP_INSTRUCTIONS,
     auth_token=GRAPHITI_AUTH_TOKEN
-)
-
-# MCP server instance
-mcp = FastMCP(
-    'graphiti',
-    instructions=GRAPHITI_MCP_INSTRUCTIONS,
 )
 
 # Initialize Graphiti client
