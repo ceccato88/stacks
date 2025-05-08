@@ -38,12 +38,7 @@ from graphiti_core.utils.maintenance.graph_data_operations import clear_data
 
 load_dotenv()
 
-mcp = FastMCP(
-    "graphiti",
-    instructions=GRAPHITI_MCP_INSTRUCTIONS,
-    auth_token=os.environ.get("GRAPHITI_AUTH_TOKEN")
-)
-
+GRAPHITI_AUTH_TOKEN = os.environ.get("GRAPHITI_AUTH_TOKEN")
 
 DEFAULT_LLM_MODEL = 'gpt-4.1-mini'
 DEFAULT_EMBEDDER_MODEL = 'text-embedding-3-small'
@@ -532,6 +527,12 @@ When searching, use specific queries and consider filtering by group_id for more
 For optimal performance, ensure the database is properly configured and accessible, and valid 
 API keys are provided for any language model operations.
 """
+
+mcp = FastMCP(
+    "graphiti",
+    instructions=GRAPHITI_MCP_INSTRUCTIONS,
+    auth_token=GRAPHITI_AUTH_TOKEN
+)
 
 # MCP server instance
 mcp = FastMCP(
