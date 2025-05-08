@@ -36,6 +36,34 @@ from graphiti_core.search.search_config_recipes import (
 from graphiti_core.search.search_filters import SearchFilters
 from graphiti_core.utils.maintenance.graph_data_operations import clear_data
 
+from starlette.middleware.authentication import AuthenticationMiddleware
+from starlette.authentication import (
+    AuthCredentials, AuthenticationBackend, SimpleUser, AuthenticationError
+)
+import base64
+import binascii
+
+class BasicAuthBackend(AuthenticationBackend):
+    async def authenticate(self, conn):
+        if "Authorization" not in conn.headers:
+            return
+
+        auth = conn.headers["Authorization"]
+        try:
+            scheme, credentials = auth.split()
+            if scheme.lower() != 'basic':
+                return
+            decoded = base64.b64decode(credentials).decode("ascii")
+        except (ValueError, UnicodeDecodeError, binascii.Error):
+            raise AuthenticationError("Invalid basic auth credentials")
+
+        username, _, password = decoded.partition(":")
+        expected_token = os.environ.get("GRAPHITI_AUTH_TOKEN")
+        if username == "admin" and password == expected_token:
+            return AuthCredentials(["authenticated"]), SimpleUser(username)
+
+        raise AuthenticationError("Invalid credentials")
+
 load_dotenv()
 
 DEFAULT_LLM_MODEL = 'gpt-4.1-mini'
@@ -531,6 +559,8 @@ mcp = FastMCP(
     'graphiti',
     instructions=GRAPHITI_MCP_INSTRUCTIONS,
 )
+
+mcp.app.add_middleware(AuthenticationMiddleware, backend=BasicAuthBackend())
 
 # Initialize Graphiti client
 graphiti_client: Graphiti | None = None
