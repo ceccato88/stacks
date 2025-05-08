@@ -36,21 +36,6 @@ from graphiti_core.search.search_config_recipes import (
 from graphiti_core.search.search_filters import SearchFilters
 from graphiti_core.utils.maintenance.graph_data_operations import clear_data
 
-from fastapi.security import HTTPBearer
-from fastapi import Depends
-from fastapi_mcp import AuthConfig
-
-from fastapi import HTTPException
-
-EXPECTED_TOKEN = os.environ.get("GRAPHITI_AUTH_TOKEN")
-
-token_auth_scheme = HTTPBearer()
-
-def validate_bearer_token(token = Depends(token_auth_scheme)):
-    if token.credentials != EXPECTED_TOKEN:
-        raise HTTPException(status_code=401, detail="Invalid or missing token")
-    return token
-    
 load_dotenv()
 
 DEFAULT_LLM_MODEL = 'gpt-4.1-mini'
@@ -541,12 +526,10 @@ For optimal performance, ensure the database is properly configured and accessib
 API keys are provided for any language model operations.
 """
 
+# MCP server instance
 mcp = FastMCP(
-    "graphiti",
+    'graphiti',
     instructions=GRAPHITI_MCP_INSTRUCTIONS,
-    auth_config=AuthConfig(
-        dependencies=[Depends(validate_bearer_token)],
-    ),
 )
 
 # Initialize Graphiti client
