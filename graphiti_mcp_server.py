@@ -40,29 +40,26 @@ from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.authentication import (
     AuthCredentials, AuthenticationBackend, SimpleUser, AuthenticationError
 )
-import base64
-import binascii
 
-class BasicAuthBackend(AuthenticationBackend):
+class BearerAuthBackend(AuthenticationBackend):
     async def authenticate(self, conn):
-        if "Authorization" not in conn.headers:
+        auth = conn.headers.get("Authorization")
+        if not auth:
             return
 
-        auth = conn.headers["Authorization"]
         try:
-            scheme, credentials = auth.split()
-            if scheme.lower() != 'basic':
+            scheme, token = auth.split()
+            if scheme.lower() != "bearer":
                 return
-            decoded = base64.b64decode(credentials).decode("ascii")
-        except (ValueError, UnicodeDecodeError, binascii.Error):
-            raise AuthenticationError("Invalid basic auth credentials")
+        except ValueError:
+            raise AuthenticationError("Invalid bearer token format")
 
-        username, _, password = decoded.partition(":")
         expected_token = os.environ.get("GRAPHITI_AUTH_TOKEN")
-        if username == "admin" and password == expected_token:
-            return AuthCredentials(["authenticated"]), SimpleUser(username)
+        if token == expected_token:
+            return AuthCredentials(["authenticated"]), SimpleUser("bearer_user")
 
-        raise AuthenticationError("Invalid credentials")
+        raise AuthenticationError("Invalid bearer token")
+
 
 load_dotenv()
 
@@ -554,13 +551,15 @@ For optimal performance, ensure the database is properly configured and accessib
 API keys are provided for any language model operations.
 """
 
-# MCP server instance
+from starlette.middleware import Middleware
+
 mcp = FastMCP(
     'graphiti',
     instructions=GRAPHITI_MCP_INSTRUCTIONS,
+    middleware=[
+        Middleware(AuthenticationMiddleware, backend=BearerAuthBackend())
+    ]
 )
-
-mcp.app.add_middleware(AuthenticationMiddleware, backend=BasicAuthBackend())
 
 # Initialize Graphiti client
 graphiti_client: Graphiti | None = None
