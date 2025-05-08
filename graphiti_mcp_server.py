@@ -36,31 +36,21 @@ from graphiti_core.search.search_config_recipes import (
 from graphiti_core.search.search_filters import SearchFilters
 from graphiti_core.utils.maintenance.graph_data_operations import clear_data
 
-from starlette.middleware.authentication import AuthenticationMiddleware
-from starlette.authentication import (
-    AuthCredentials, AuthenticationBackend, SimpleUser, AuthenticationError
-)
+from fastapi.security import HTTPBearer
+from fastapi import Depends
+from fastapi_mcp import AuthConfig
 
-class BearerAuthBackend(AuthenticationBackend):
-    async def authenticate(self, conn):
-        auth = conn.headers.get("Authorization")
-        if not auth:
-            return
+from fastapi import HTTPException
 
-        try:
-            scheme, token = auth.split()
-            if scheme.lower() != "bearer":
-                return
-        except ValueError:
-            raise AuthenticationError("Invalid bearer token format")
+EXPECTED_TOKEN = os.environ.get("GRAPHITI_AUTH_TOKEN")
 
-        expected_token = os.environ.get("GRAPHITI_AUTH_TOKEN")
-        if token == expected_token:
-            return AuthCredentials(["authenticated"]), SimpleUser("bearer_user")
+token_auth_scheme = HTTPBearer()
 
-        raise AuthenticationError("Invalid bearer token")
-
-
+def validate_bearer_token(token = Depends(token_auth_scheme)):
+    if token.credentials != EXPECTED_TOKEN:
+        raise HTTPException(status_code=401, detail="Invalid or missing token")
+    return token
+    
 load_dotenv()
 
 DEFAULT_LLM_MODEL = 'gpt-4.1-mini'
@@ -551,14 +541,12 @@ For optimal performance, ensure the database is properly configured and accessib
 API keys are provided for any language model operations.
 """
 
-from starlette.middleware import Middleware
-
 mcp = FastMCP(
-    'graphiti',
+    "graphiti",
     instructions=GRAPHITI_MCP_INSTRUCTIONS,
-    middleware=[
-        Middleware(AuthenticationMiddleware, backend=BearerAuthBackend())
-    ]
+    auth_config=AuthConfig(
+        dependencies=[Depends(validate_bearer_token)],
+    ),
 )
 
 # Initialize Graphiti client
