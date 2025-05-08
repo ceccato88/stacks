@@ -38,6 +38,13 @@ from graphiti_core.utils.maintenance.graph_data_operations import clear_data
 
 load_dotenv()
 
+mcp = FastMCP(
+    "graphiti",
+    instructions=GRAPHITI_MCP_INSTRUCTIONS,
+    auth_token=os.environ.get("GRAPHITI_AUTH_TOKEN")
+)
+
+
 DEFAULT_LLM_MODEL = 'gpt-4.1-mini'
 DEFAULT_EMBEDDER_MODEL = 'text-embedding-3-small'
 
