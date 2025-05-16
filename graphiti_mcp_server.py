@@ -36,6 +36,27 @@ from graphiti_core.search.search_config_recipes import (
 from graphiti_core.search.search_filters import SearchFilters
 from graphiti_core.utils.maintenance.graph_data_operations import clear_data
 
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
+from starlette.status import HTTP_401_UNAUTHORIZED
+import os
+
+class AuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        auth_header = request.headers.get("authorization")
+
+        if not auth_header or not auth_header.startswith("Bearer "):
+            return Response("Unauthorized: Token ausente ou formato inválido", status_code=HTTP_401_UNAUTHORIZED)
+
+        token = auth_header.split(" ")[1]
+        expected_token = os.getenv("BEARER_TOKEN")
+
+        if token != expected_token:
+            return Response("Unauthorized: Token inválido", status_code=HTTP_401_UNAUTHORIZED)
+
+        return await call_next(request)
+
 load_dotenv()
 
 DEFAULT_LLM_MODEL = 'gpt-4.1-mini'
@@ -531,6 +552,9 @@ mcp = FastMCP(
     'graphiti',
     instructions=GRAPHITI_MCP_INSTRUCTIONS,
 )
+
+# Aqui você adiciona o middleware
+mcp.app.add_middleware(AuthMiddleware)
 
 # Initialize Graphiti client
 graphiti_client: Graphiti | None = None
